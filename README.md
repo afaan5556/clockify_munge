@@ -1,4 +1,4 @@
-# clockif_munge.py
+# clockif_preprocess.py
 This script reads standard clockify .xlsx exports in various folders and creates a combined csv with meta data that clockify does not export
 
 ## Data Required
