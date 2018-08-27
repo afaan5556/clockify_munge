@@ -3,13 +3,12 @@ import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
 import plotly.graph_objs as go
+import datetime as dt
 
-######################## Part 1: Read and prep combined data source ########################
+######################## Part 1A: Read and prep combined data source ########################
 # Read combined data
 ROOT_DIR = '../ConsolidatedData/'
-# TODO: Update preprocessing to create and overwrite a single export csv only
-# TODO: Rename the path below to that single csv file name
-df = pd.read_csv(ROOT_DIR + '2018823_consolidated_clockify_data.csv')
+df = pd.read_csv(ROOT_DIR + 'consolidated_clockify_data.csv')
 # Drop the doubled index colum
 df = df.drop(columns=['Unnamed: 0'])
 # Set datetime columns
@@ -20,7 +19,7 @@ df['End Date'] = pd.to_datetime(df['End Date'])
 df['Time (h)'] = pd.to_timedelta(df['Time (h)'])
 
 
-######################## Part 2: Functions for data sub-sets and queries needed for visualizations ########################
+######################## Part 1B: Get the filtered (with tasks) and the unfiltered (all) dfs ########################
 
 # Function to get parameter filtered subset of df
 def filter_param(input_df, param, param_value):
@@ -29,6 +28,27 @@ def filter_param(input_df, param, param_value):
 # Function to get parameter inverse filtered subset of df
 def inverse_filter_param(input_df, param, param_value):
 	return input_df[input_df[param] != param_value]
+
+# Get the unfiltered and filtered versions of the df
+df_unfiltered = filter_param(df, 'Task', 'Unfiltered') # Base df not by task
+df_filtered = inverse_filter_param(df, 'Task', 'Filtered') # Base df by task
+
+df_dict = {'Data with task tags': df_filtered, 'Data without task tags': df_unfiltered}
+
+######################## Part 2a: Function to get user choice on filtered/unfiltered df ########################
+
+# Function that returns filtered or unfiltered df
+def user_df_choice(user_choice=str):
+    return df_dict[user_choice]
+
+######################## Part 2b: Call user_df_choice function to get filtered/unfiltered df ########################
+
+# TODO Turn this into a user input
+user_df = user_df_choice('Data with task tags')
+# Reindex the user_df
+user_df = user_df.reset_index(drop=True)
+
+######################## Part 2: Functions for data sub-sets and queries needed for visualizations ########################
 
 # Function to set multi-index on a param
 def create_multi_index_df(input_df, set_index_list=list):
@@ -45,13 +65,9 @@ def sum_df_on_mi(input_df, group_by_list=list, sum_on_list=list):
 
 ######################## Part 3: Call/test functions ########################
 
-# Get the unfiltered and filtered versions of the df
-df_unfiltered = filter_param(df, 'Task', 'Unfiltered') # Base df not by task
-df_filtered = inverse_filter_param(df, 'Task', 'Unfiltered') # Base df by task
-
 # Get the project and task column based multi-index df
-project_multi_df = create_multi_index_df(df, ['Project', 'Task'])
-task_multi_df = create_multi_index_df(df, ['Task', 'Project'])
+project_multi_df = create_multi_index_df(user_df, ['Project', 'Task'])
+task_multi_df = create_multi_index_df(user_df, ['Task', 'Project'])
 
 # Get project and task grouped absolute sum dfs
 project_sum_df = sum_df_on_mi(project_multi_df, ['Project'], ['Time (h)'])
@@ -61,3 +77,97 @@ task_sum_df = sum_df_on_mi(task_multi_df, ['Task'], ['Time (h)'])
 project_task_sum_df = sum_df_on_mi(project_multi_df, ['Project', 'Task'], ['Time (h)'])
 task_project_sum_df = sum_df_on_mi(task_multi_df, ['Task', 'Project'], ['Time (h)'])
 
+
+######################## Part 4: Viz  ########################
+app = dash.Dash()
+
+app.layout = html.Div([
+
+######################## Part 4A: Header ########################
+dcc.Markdown('''
+# Component Design Project Activity
+*Weekly Clockify data export and viewer*
+
+***
+
+
+### Inputs: Clockify Export Data Filtering
+'''),
+######################## Part 4B: Inputs ########################
+
+html.Div([
+	html.Div([
+        html.Label('Export data type'),
+        dcc.Dropdown(
+			id='data-input',
+			options=[{'label': i, 'value': i} for i in sorted(list(df_dict.keys()))],
+			value='All data'
+			),
+		],
+		style={'width': '30%', 'display': 'inline-block'}),
+
+	html.Div([
+        html.Label('Project'),
+        dcc.Dropdown(
+			id='project-input',
+			options=[{'label': i, 'value': i} for i in sorted(list(user_df['Project'].unique()))],
+			value=''
+			),
+		],
+		style={'width': '30%', 'float': 'right', 'display': 'inline-block'}),
+
+    html.Div([
+            html.Label('__')
+            ],
+		style={'width': '5%', 'float': 'right', 'display': 'inline-block', 'color': 'white'}),
+
+
+    html.Div([
+        html.Label('Task'),
+        dcc.Dropdown(
+			id='task-input',
+			options=[{'label': i, 'value': i} for i in sorted(list(user_df['Task'].unique()))],
+			value=''
+			),
+		],
+		style={'width': '30%', 'float': 'right', 'display': 'inline-block'}),
+
+
+
+    html.Div([
+            html.Label('__')
+            ],
+		style={'width': '5%', 'float': 'right', 'display': 'inline-block', 'color': 'white'}),
+
+             
+]),
+
+html.Div([
+	html.Div([
+        html.Label('Export data date range'),
+        dcc.DatePickerRange(
+                id='date-range',
+                min_date_allowed=min(user_df['Start Date']),
+                max_date_allowed=max(user_df['Start Date']),
+                initial_visible_month=dt.date.today(),
+                start_date=dt.date.today() - dt.timedelta(days=60),
+                end_date=dt.date.today()
+			),
+		],
+		style={'width': '30%', 'display': 'inline-block', 'margin-top': '25px'}),
+
+
+             
+]),    
+    
+    
+html.Hr(),            
+    ])
+
+######################## Part 4: Callbacks and functions ########################
+
+
+app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"})
+
+if __name__ == '__main__':
+	app.run_server()
