@@ -58,7 +58,7 @@ def read_and_concat_dfs(abs_path):
         # Get the parent folder (task) name
         for direc in dirs:
             for roots, dirs, files in os.walk(ROOT_DIR + direc):
-                # For each file inthe parent folder
+                # For each file in the parent folder
                 for file in files:
                     df_list.append(read_prep_df(ROOT_DIR + direc + '/' + file, direc))
     data_df = pd.concat(df_list, ignore_index=True)
@@ -75,4 +75,4 @@ def main():
 consolidated_data = main()
 
 # export final df to csv
-consolidated_data.to_csv('../ConsolidatedData/' + str(pd.Timestamp.now().year) + str(pd.Timestamp.now().month) + str(pd.Timestamp.now().day) + '_consolidated_clockify_data.csv')
+consolidated_data.to_csv('../ConsolidatedData/consolidated_clockify_data.csv')
