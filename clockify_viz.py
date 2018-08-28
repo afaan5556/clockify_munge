@@ -4,8 +4,12 @@ import dash_html_components as html
 import pandas as pd
 import plotly.graph_objs as go
 import datetime as dt
+from dash.dependencies import Input, Output
 
 ######################## Part 1A: Read and prep combined data source ########################
+# Constants
+UNITS = {'FloorTrusses': 'bd-ft', 'RoofTrusses': 'bd-ft', 'FloorPanels': 'sq-ft', 'WallPanels': 'ln-ft'}
+
 # Read combined data
 ROOT_DIR = '../ConsolidatedData/'
 df = pd.read_csv(ROOT_DIR + 'consolidated_clockify_data.csv')
@@ -18,22 +22,21 @@ df['End Date'] = pd.to_datetime(df['End Date'])
 # Set Time (h) to timedelta
 df['Time (h)'] = pd.to_timedelta(df['Time (h)'])
 
-
 ######################## Part 1B: Get the filtered (with tasks) and the unfiltered (all) dfs ########################
 
 # Function to get parameter filtered subset of df
 def filter_param(input_df, param, param_value):
-	return input_df[input_df[param] == param_value]
+    return input_df[input_df[param] == param_value]
 
 # Function to get parameter inverse filtered subset of df
 def inverse_filter_param(input_df, param, param_value):
-	return input_df[input_df[param] != param_value]
+    return input_df[input_df[param] != param_value]
 
 # Get the unfiltered and filtered versions of the df
 df_unfiltered = filter_param(df, 'Task', 'Unfiltered') # Base df not by task
-df_filtered = inverse_filter_param(df, 'Task', 'Filtered') # Base df by task
+df_filtered = inverse_filter_param(df, 'Task', 'Unfiltered') # Base df by task
 
-df_dict = {'Data with task tags': df_filtered, 'Data without task tags': df_unfiltered}
+df_dict = {'Data with task tags only': df_filtered, 'All data (with or without task tags)': df_unfiltered}
 
 ######################## Part 2a: Function to get user choice on filtered/unfiltered df ########################
 
@@ -44,7 +47,7 @@ def user_df_choice(user_choice=str):
 ######################## Part 2b: Call user_df_choice function to get filtered/unfiltered df ########################
 
 # TODO Turn this into a user input
-user_df = user_df_choice('Data with task tags')
+user_df = user_df_choice('Data with task tags only')
 # Reindex the user_df
 user_df = user_df.reset_index(drop=True)
 
@@ -83,91 +86,126 @@ app = dash.Dash()
 
 app.layout = html.Div([
 
+    html.Div([
+
 ######################## Part 4A: Header ########################
 dcc.Markdown('''
-# Component Design Project Activity
-*Weekly Clockify data export and viewer*
+# Component Design Productivity Calculator
+*Based on Clockify time entries and actual production data*
 
 ***
 
 
-### Inputs: Clockify Export Data Filtering
+### Inputs
 '''),
+]),
 ######################## Part 4B: Inputs ########################
 
+# Left div for all the inputs
 html.Div([
-	html.Div([
-        html.Label('Export data type'),
-        dcc.Dropdown(
-			id='data-input',
-			options=[{'label': i, 'value': i} for i in sorted(list(df_dict.keys()))],
-			value='All data'
-			),
-		],
-		style={'width': '30%', 'display': 'inline-block'}),
-
-	html.Div([
-        html.Label('Project'),
-        dcc.Dropdown(
-			id='project-input',
-			options=[{'label': i, 'value': i} for i in sorted(list(user_df['Project'].unique()))],
-			value=''
-			),
-		],
-		style={'width': '30%', 'float': 'right', 'display': 'inline-block'}),
-
+    # Task dropdown
     html.Div([
-            html.Label('__')
-            ],
-		style={'width': '5%', 'float': 'right', 'display': 'inline-block', 'color': 'white'}),
-
-
-    html.Div([
-        html.Label('Task'),
+        html.Label('Task tag'),
         dcc.Dropdown(
-			id='task-input',
-			options=[{'label': i, 'value': i} for i in sorted(list(user_df['Task'].unique()))],
-			value=''
-			),
-		],
-		style={'width': '30%', 'float': 'right', 'display': 'inline-block'}),
+            id='task-input',
+            options=[{'label': i, 'value': i} for i in sorted(list(user_df['Task'].unique()))],
+            value=''
+            ),
+        ],
+        style={'margin-top': '25px'},
+        ),
 
-
-
+    # Date range dropdown
     html.Div([
-            html.Label('__')
-            ],
-		style={'width': '5%', 'float': 'right', 'display': 'inline-block', 'color': 'white'}),
-
-             
-]),
-
-html.Div([
-	html.Div([
         html.Label('Export data date range'),
         dcc.DatePickerRange(
-                id='date-range',
-                min_date_allowed=min(user_df['Start Date']),
-                max_date_allowed=max(user_df['Start Date']),
-                initial_visible_month=dt.date.today(),
-                start_date=dt.date.today() - dt.timedelta(days=60),
-                end_date=dt.date.today()
-			),
-		],
-		style={'width': '30%', 'display': 'inline-block', 'margin-top': '25px'}),
+            id='date-range',
+            min_date_allowed=min(user_df['Start Date']),
+            max_date_allowed=max(user_df['End Date']),
+            initial_visible_month=dt.date.today(),
+            start_date=dt.date.today() - dt.timedelta(days=60),
+            end_date=dt.date.today()
+            ),
+        ],
+        style={'margin-top': '25px'}),
+
+    # Production div
+    html.Div([
+        html.Label('Production for this task-project-duration mix'),
+        html.Div([
+            # Left div for input field
+            html.Div([
+                dcc.Input(
+                    id='production',
+                    type='text'),
+                ],
+                style={'width': '46%', 'display': 'inline-block'}),
+            # Right div for input unit
+            html.Div(
+                id='production-unit',
+                style={'width': '20%', 'display': 'inline-block', 'text-align': 'left'}
+                )
+            ],
+            ),
 
 
-             
-]),    
-    
-    
+    # Project dropdown
+    html.Div([
+        html.Label('Project tag(s)'),
+        dcc.Dropdown(
+            id='project-input',
+            options=[{'label': i, 'value': i} for i in sorted(list(user_df['Project'].unique()))],
+            value='',
+            multi=True
+            ),
+        ],
+        style={'margin-top': '25px'},
+        ),
+
+    # Data type dropdown
+    html.Div([
+        html.Label('Export data type'),
+        dcc.Dropdown(
+            id='data-input',
+            options=[{'label': i, 'value': i} for i in sorted(list(df_dict.keys()))],
+            value='All data'
+            ),
+        ],
+        style={'margin-top': '25px'},
+        ),
+
+        # Compute button div
+        html.Div([
+            html.Label('Calculate productivity for this task-project-duration mix'),
+            html.Button('Run', id='button'),
+            ],
+            style={'margin-top': '25px'}),
+
+        ],
+        style={'margin-top': '25px'}
+        ),
+
+    ],
+    # Overall left div set to 30% of screen
+    style={'width': '30%',}
+    ),
+
 html.Hr(),            
-    ])
+])
 
 ######################## Part 4: Callbacks and functions ########################
 
+@app.callback(
+    Output(component_id='production-unit', component_property='children'),
+    [Input(component_id='task-input', component_property='value')]
+    )
+def update_production_unit(input_value):
+    return UNITS[input_value]
+
+
+######################## Part 5: Run the app ########################
 
 app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"})
 
 if __name__ == '__main__':
-	app.run_server()
+    app.run_server()
