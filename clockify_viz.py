@@ -4,6 +4,7 @@ import dash_html_components as html
 import pandas as pd
 import plotly.graph_objs as go
 import datetime as dt
+import dash_table_experiments as dte
 from dash.dependencies import Input, Output
 
 ######################## Part 1A: Read and prep combined data source ########################
@@ -80,7 +81,6 @@ task_sum_df = sum_df_on_mi(task_multi_df, ['Task'], ['Time (h)'])
 project_task_sum_df = sum_df_on_mi(project_multi_df, ['Project', 'Task'], ['Time (h)'])
 task_project_sum_df = sum_df_on_mi(task_multi_df, ['Task', 'Project'], ['Time (h)'])
 
-
 ######################## Part 4: Viz  ########################
 app = dash.Dash()
 
@@ -96,13 +96,16 @@ dcc.Markdown('''
 ***
 
 
-### Inputs
 '''),
 ]),
 ######################## Part 4B: Inputs ########################
 
 # Left div for all the inputs
 html.Div([
+dcc.Markdown('''
+### Inputs
+'''),
+        
     # Task dropdown
     html.Div([
         html.Label('Task tag'),
@@ -187,8 +190,20 @@ html.Div([
 
     ],
     # Overall left div set to 30% of screen
-    style={'width': '30%',}
+    style={'width': '30%', 'display': 'inline-block'}
     ),
+        
+# Right div for all the outputs
+html.Div([
+
+dcc.Markdown('''
+### Outputs
+'''),
+             ],
+        style={'width': '65%', 'display': 'inline-block', 'verticalAlign': 'top', 'margin-left': '25px'}
+        ),
+        
+
 
 html.Hr(),            
 ])
@@ -201,6 +216,7 @@ html.Hr(),
     )
 def update_production_unit(input_value):
     return UNITS[input_value]
+
 
 
 ######################## Part 5: Run the app ########################
