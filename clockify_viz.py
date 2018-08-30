@@ -4,6 +4,7 @@ import dash_html_components as html
 import pandas as pd
 import plotly.graph_objs as go
 import datetime as dt
+from datetime import datetime
 import dash_table_experiments as dte
 from dash.dependencies import Input, Output
 
@@ -27,11 +28,11 @@ df['Time (h)'] = pd.to_timedelta(df['Time (h)'])
 
 # Function to get parameter filtered subset of df
 def filter_param(input_df, param, param_value):
-    return input_df[input_df[param] == param_value]
+	return input_df[input_df[param] == param_value]
 
 # Function to get parameter inverse filtered subset of df
 def inverse_filter_param(input_df, param, param_value):
-    return input_df[input_df[param] != param_value]
+	return input_df[input_df[param] != param_value]
 
 # Get the unfiltered and filtered versions of the df
 df_unfiltered = filter_param(df, 'Task', 'Unfiltered') # Base df not by task
@@ -159,7 +160,7 @@ dcc.Markdown('''
             id='project-input',
             options=[{'label': i, 'value': i} for i in sorted(list(user_df['Project'].unique()))],
             value='',
-            multi=True
+            # multi=True
             ),
         ],
         style={'margin-top': '25px'},
@@ -199,10 +200,20 @@ html.Div([
 dcc.Markdown('''
 ### Outputs
 '''),
-             ],
-        style={'width': '65%', 'display': 'inline-block', 'verticalAlign': 'top', 'margin-left': '25px'}
-        ),
-        
+
+	# Productivity fields
+	html.Div([
+		html.Div(id='total-hours'),
+		html.Div(id='total-production'),
+		html.Div(id='productivity')
+		],
+		style={'margin-top': '25px'},
+		),
+
+	],
+	style={'width': '65%', 'display': 'inline-block', 'verticalAlign': 'top', 'margin-left': '25px'}
+	),
+
 
 
 html.Hr(),            
@@ -217,6 +228,39 @@ html.Hr(),
 def update_production_unit(input_value):
     return UNITS[input_value]
 
+@app.callback(
+        Output(component_id='total-hours', component_property='children'),
+        [Input(component_id='task-input', component_property='value'),
+         Input(component_id='date-range', component_property='start_date'),
+         Input(component_id='date-range', component_property='end_date'),
+         Input(component_id='project-input', component_property='value')])
+def get_filtered_hours(task_value, start_date, end_date, project_value):
+	# Filter df by user selected task
+	df = user_df[user_df['Task'] == task_value]
+	print('1111111111111111111111')
+	print(task_value)
+	print('1111111111111111111111')
+	# Filter t_df by user selected start and end dates (including conversion from string to datetime)
+	df = df[df['Start Date'] >= datetime.strptime(start_date, '%Y-%m-%d')]
+	df = df[df['End Date'] <=  datetime.strptime(end_date, '%Y-%m-%d')]
+	print('2222222222222222222222')
+	print(start_date)
+	print(end_date)
+	print('2222222222222222222222')
+	# Filter t_d_df by projects
+	df = df[df['Project'] == project_value]
+	print('3333333333333333333333')
+	print(project_value)
+	print(df.head(30))
+	print(df['Project'].head(30))
+	print('3333333333333333333333')
+	print('4444444444444444444444')
+	print(df.head(30))
+	print('4444444444444444444444')
+
+	return 'Task-project-duration mix hours: {}'.format(df['Time (h)'].sum())
+
+
 
 
 ######################## Part 5: Run the app ########################
@@ -224,4 +268,4 @@ def update_production_unit(input_value):
 app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"})
 
 if __name__ == '__main__':
-    app.run_server()
+	app.run_server()
